@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<DeviceContext>(opt =>
-    opt.UseInMemoryDatabase("DeviceList"));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 // Make OpenAPI describe numbers as plain integers so Swagger UI can validate them
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);

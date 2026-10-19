@@ -15,7 +15,7 @@ Based on Microsoft's [Create a controller-based web API](https://learn.microsoft
 | Branch | Database | Notes |
 |---|---|---|
 | `main` | EF Core **InMemory** | No setup needed. Data is lost every time the app restarts. |
-| `postgresql` | **PostgreSQL** via [Npgsql](https://www.npgsql.org/efcore/) | Data is stored in a real database and survives restarts. |
+| `postgresql` | **PostgreSQL** on [Neon](https://neon.tech) via [Npgsql](https://www.npgsql.org/efcore/) | Data is stored in a hosted database and survives restarts. |
 
 To switch to the PostgreSQL version:
 
@@ -35,19 +35,21 @@ Then open Swagger UI at <https://localhost:7077/swagger> (or <http://localhost:5
 
 ## Running (postgresql branch)
 
-1. Have a PostgreSQL server running. The quickest way is Docker:
+1. Create a free project on [Neon](https://neon.tech). In the **Connect** dialog, choose **.NET** to get the connection string in the format Npgsql expects (`Host=...; Database=...; Username=...; Password=...`). The `postgresql://...` URL shown by default won't work.
+
+2. Copy the example settings file and fill in your connection string:
 
    ```bash
-   docker run --name deviceapi-db -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
+   cp appsettings.example.json appsettings.json
    ```
-
-2. Set the connection string in `appsettings.Development.json`:
 
    ```json
    "ConnectionStrings": {
-     "DeviceContext": "Host=localhost;Port=5432;Database=deviceapi;Username=postgres;Password=postgres"
+     "DefaultConnection": "Host=YOUR_NEON_HOST.neon.tech; Database=neondb; Username=YOUR_USERNAME; Password=YOUR_PASSWORD; SSL Mode=VerifyFull; Channel Binding=Require;"
    }
    ```
+
+   `appsettings.json` is in `.gitignore`, so your password is never committed. Only `appsettings.example.json` (with placeholders) is in the repo.
 
 3. Create the database tables:
 
