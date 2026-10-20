@@ -9,7 +9,7 @@ Based on Microsoft's [Create a controller-based web API](https://learn.microsoft
 - CRUD endpoints for devices (`Name`, `Type`, `Status`)
 - DTOs (`DeviceItemDTO`) so internal fields like `Secret` are never sent to or accepted from clients
 - OpenAPI document and Swagger UI in development
-- Dockerfile for running the API in a container (`postgresql` branch)
+- Dockerfile for running the API in a container (both branches)
 
 ## Branches
 
@@ -65,27 +65,60 @@ Then open Swagger UI at <https://localhost:7077/swagger> (or <http://localhost:5
    dotnet run
    ```
 
-## Running with Docker (postgresql branch)
+## Running with Docker
 
-The `Dockerfile` builds the app with the .NET SDK image and runs it on the smaller ASP.NET runtime image. `appsettings.json` is excluded by `.dockerignore`, so the connection string is passed in as an environment variable instead of being baked into the image.
+Both branches include the same `Dockerfile` and `.dockerignore`. You only need [Docker](https://docs.docker.com/get-docker/) (or [Podman](https://podman.io)) installed, not the .NET SDK.
 
-Make sure the database tables exist first (step 3 above). The container doesn't run migrations.
+The `Dockerfile` builds the app with the .NET SDK image and runs it on the smaller ASP.NET runtime image. `.dockerignore` keeps `bin/`, `obj/`, `.git/` and the `appsettings` files out of the image, so no passwords end up inside it.
+
+1. Make sure Docker is running:
+
+   ```bash
+   sudo systemctl start docker
+   ```
+
+2. Build the image (from the project folder):
+
+   ```bash
+   docker build -t deviceapi .
+   ```
+
+3. Run the container. The command depends on the branch:
+
+### main branch (InMemory)
+
+No database or configuration needed:
 
 ```bash
-docker build -t deviceapi .
+docker run -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development deviceapi
+```
 
+Data is lost when the container stops.
+
+### postgresql branch (Neon)
+
+Make sure the database tables exist first (step 3 of [Running (postgresql branch)](#running-postgresql-branch)). The container doesn't run migrations.
+
+Since `appsettings.json` isn't in the image, pass the connection string as an environment variable:
+
+```bash
 docker run -p 8080:8080 \
   -e ASPNETCORE_ENVIRONMENT=Development \
   -e ConnectionStrings__DefaultConnection="Host=YOUR_NEON_HOST.neon.tech; Database=neondb; Username=YOUR_USERNAME; Password=YOUR_PASSWORD; SSL Mode=VerifyFull; Channel Binding=Require;" \
   deviceapi
 ```
 
-Then open Swagger UI at <http://localhost:8080/swagger>, or call the API at <http://localhost:8080/api/DeviceItem>.
+The double underscore in `ConnectionStrings__DefaultConnection` maps to `ConnectionStrings:DefaultConnection` in the app's configuration.
+
+### Using it
+
+Open Swagger UI at <http://localhost:8080/swagger>, or call the API at <http://localhost:8080/api/DeviceItem>.
 
 - The container listens on port **8080** (the .NET image default), not the ports from `launchSettings.json`.
 - `ASPNETCORE_ENVIRONMENT=Development` turns on Swagger UI. Leave it out to run in Production mode.
-- The double underscore in `ConnectionStrings__DefaultConnection` maps to `ConnectionStrings:DefaultConnection` in the app's configuration.
-- [Podman](https://podman.io) works too: replace `docker` with `podman`.
+- Stop the container with **Ctrl+C**, or `docker ps` then `docker stop <id>` if it runs in the background.
+- Stop Docker itself with `sudo systemctl stop docker docker.socket`.
+- Podman works the same way: replace `docker` with `podman` (no `systemctl` step needed).
 
 ## Endpoints
 
