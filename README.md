@@ -9,6 +9,7 @@ Based on Microsoft's [Create a controller-based web API](https://learn.microsoft
 - CRUD endpoints for devices (`Name`, `Type`, `Status`)
 - DTOs (`DeviceItemDTO`) so internal fields like `Secret` are never sent to or accepted from clients
 - OpenAPI document and Swagger UI in development
+- Dockerfile for running the API in a container (`postgresql` branch)
 
 ## Branches
 
@@ -63,6 +64,28 @@ Then open Swagger UI at <https://localhost:7077/swagger> (or <http://localhost:5
    ```bash
    dotnet run
    ```
+
+## Running with Docker (postgresql branch)
+
+The `Dockerfile` builds the app with the .NET SDK image and runs it on the smaller ASP.NET runtime image. `appsettings.json` is excluded by `.dockerignore`, so the connection string is passed in as an environment variable instead of being baked into the image.
+
+Make sure the database tables exist first (step 3 above). The container doesn't run migrations.
+
+```bash
+docker build -t deviceapi .
+
+docker run -p 8080:8080 \
+  -e ASPNETCORE_ENVIRONMENT=Development \
+  -e ConnectionStrings__DefaultConnection="Host=YOUR_NEON_HOST.neon.tech; Database=neondb; Username=YOUR_USERNAME; Password=YOUR_PASSWORD; SSL Mode=VerifyFull; Channel Binding=Require;" \
+  deviceapi
+```
+
+Then open Swagger UI at <http://localhost:8080/swagger>, or call the API at <http://localhost:8080/api/DeviceItem>.
+
+- The container listens on port **8080** (the .NET image default), not the ports from `launchSettings.json`.
+- `ASPNETCORE_ENVIRONMENT=Development` turns on Swagger UI. Leave it out to run in Production mode.
+- The double underscore in `ConnectionStrings__DefaultConnection` maps to `ConnectionStrings:DefaultConnection` in the app's configuration.
+- [Podman](https://podman.io) works too: replace `docker` with `podman`.
 
 ## Endpoints
 
