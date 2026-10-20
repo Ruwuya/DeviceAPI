@@ -9,13 +9,14 @@ Based on Microsoft's [Create a controller-based web API](https://learn.microsoft
 - CRUD endpoints for devices (`Name`, `Type`, `Status`)
 - DTOs (`DeviceItemDTO`) so internal fields like `Secret` are never sent to or accepted from clients
 - OpenAPI document and Swagger UI in development
+- Dockerfile for running the API in a container (`postgresql` branch)
 
 ## Branches
 
 | Branch | Database | Notes |
 |---|---|---|
 | `main` | EF Core **InMemory** | No setup needed. Data is lost every time the app restarts. |
-| `postgresql` | **PostgreSQL** via [Npgsql](https://www.npgsql.org/efcore/) | Data is stored in a real database and survives restarts. |
+| `postgresql` | **PostgreSQL** on [Neon](https://neon.tech) via [Npgsql](https://www.npgsql.org/efcore/) | Data is stored in a hosted database and survives restarts. |
 
 To switch to the PostgreSQL version:
 
@@ -35,19 +36,21 @@ Then open Swagger UI at <https://localhost:7077/swagger> (or <http://localhost:5
 
 ## Running (postgresql branch)
 
-1. Have a PostgreSQL server running. The quickest way is Docker:
+1. Create a free project on [Neon](https://neon.tech). In the **Connect** dialog, choose **.NET** to get the connection string in the format Npgsql expects (`Host=...; Database=...; Username=...; Password=...`). The `postgresql://...` URL shown by default won't work.
+
+2. Copy the example settings file and fill in your connection string:
 
    ```bash
-   docker run --name deviceapi-db -e POSTGRES_PASSWORD=postgres -p 5432:5432 -d postgres
+   cp appsettings.example.json appsettings.json
    ```
-
-2. Set the connection string in `appsettings.Development.json`:
 
    ```json
    "ConnectionStrings": {
-     "DeviceContext": "Host=localhost;Port=5432;Database=deviceapi;Username=postgres;Password=postgres"
+     "DefaultConnection": "Host=YOUR_NEON_HOST.neon.tech; Database=neondb; Username=YOUR_USERNAME; Password=YOUR_PASSWORD; SSL Mode=VerifyFull; Channel Binding=Require;"
    }
    ```
+
+   `appsettings.json` is in `.gitignore`, so your password is never committed. Only `appsettings.example.json` (with placeholders) is in the repo.
 
 3. Create the database tables:
 
@@ -61,6 +64,28 @@ Then open Swagger UI at <https://localhost:7077/swagger> (or <http://localhost:5
    ```bash
    dotnet run
    ```
+
+## Running with Docker (postgresql branch)
+
+The `Dockerfile` builds the app with the .NET SDK image and runs it on the smaller ASP.NET runtime image. `appsettings.json` is excluded by `.dockerignore`, so the connection string is passed in as an environment variable instead of being baked into the image.
+
+Make sure the database tables exist first (step 3 above). The container doesn't run migrations.
+
+```bash
+docker build -t deviceapi .
+
+docker run -p 8080:8080 \
+  -e ASPNETCORE_ENVIRONMENT=Development \
+  -e ConnectionStrings__DefaultConnection="Host=YOUR_NEON_HOST.neon.tech; Database=neondb; Username=YOUR_USERNAME; Password=YOUR_PASSWORD; SSL Mode=VerifyFull; Channel Binding=Require;" \
+  deviceapi
+```
+
+Then open Swagger UI at <http://localhost:8080/swagger>, or call the API at <http://localhost:8080/api/DeviceItem>.
+
+- The container listens on port **8080** (the .NET image default), not the ports from `launchSettings.json`.
+- `ASPNETCORE_ENVIRONMENT=Development` turns on Swagger UI. Leave it out to run in Production mode.
+- The double underscore in `ConnectionStrings__DefaultConnection` maps to `ConnectionStrings:DefaultConnection` in the app's configuration.
+- [Podman](https://podman.io) works too: replace `docker` with `podman`.
 
 ## Endpoints
 
